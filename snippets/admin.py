@@ -7,15 +7,9 @@ class SnippetAdmin(AuditLogMixin, admin.ModelAdmin):
     readonly_fields = ("highlighted",)
 
     def save_model(self, request, obj, form, change):
-        """
-        Call the mixin's save_model to handle saving and logging.
-        """
         super().save_model(request, obj, form, change)
 
     def delete_model(self, request, obj):
-        """
-        Call the mixin's delete_model to handle deletion and logging.
-        """
         super().delete_model(request, obj)
 
 
@@ -27,15 +21,9 @@ class CustomUserAdmin(AuditLogMixin, admin.ModelAdmin):
     actions = ["soft_delete_users"]
 
     def save_model(self, request, obj, form, change):
-        """
-        Use the mixin's save_model logic to handle auditing.
-        """
         super().save_model(request, obj, form, change)
 
     def delete_model(self, request, obj):
-        """
-        Use the mixin's delete_model logic to handle auditing.
-        """
         obj.is_deleted = True  # Soft delete instead of hard delete
         obj.save()
         self.log_action(user=request.user, instance=obj, action="destroy")

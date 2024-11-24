@@ -14,3 +14,17 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
 
         # Write permissions are only allowed to the owner of the snippet.
         return obj.owner == request.user
+
+
+class IsStaffOrReadOnly(permissions.BasePermission):
+    """
+    Custom permission to grant read-only access to all authenticated users,
+    but restrict update/delete permissions to staff users only.
+    """
+
+    def has_permission(self, request, view):
+        # Allow any authenticated user to access retrieve (GET) actions
+        if request.method in permissions.SAFE_METHODS:
+            return request.user and request.user.is_authenticated
+        # For other actions (PUT, PATCH, DELETE), only staff users are allowed
+        return request.user and request.user.is_staff
