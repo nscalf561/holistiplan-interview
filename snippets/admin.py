@@ -70,7 +70,7 @@ class CustomUserAdmin(AuditLogMixin, admin.ModelAdmin):
             if not user.is_deleted:
                 user.is_deleted = True
                 user.save()
-                self.log_action(user=request.user, instance=user, action="soft_delete")
+                self.log_action(user=request.user, instance=user, action="destroy")
 
     soft_delete_users.short_description = "Soft delete selected users"
 
