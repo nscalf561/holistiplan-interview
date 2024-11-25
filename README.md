@@ -26,3 +26,7 @@ python manage.py createsuperuser
 
 5. **Run server**
 python manage.py runserver
+
+
+## Limits:
+Given the time constraints, this project was left mostly a flat structure and simple.  In a more robust project, there would be more time spent on organizing files, more robust error handling, appropriate post actions, and general work making the code more maintainable.
