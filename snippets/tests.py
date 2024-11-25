@@ -1,8 +1,14 @@
+from unittest.mock import Mock
 from django.urls import reverse
+from django.test import TestCase
+from django.contrib.admin.sites import AdminSite
 from rest_framework import status
 from rest_framework.test import APITestCase
-from snippets.models import AuditLog, Snippet, SoftDeleteUser as User
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from snippets.admin import CustomUserAdmin, SnippetAdmin, AuditLogAdmin
+from snippets.mixins import AuditLogMixin
+from snippets.models import AuditLog, Snippet, SoftDeleteUser as User
 
 
 class UserManagementAPITests(APITestCase):
@@ -386,3 +392,95 @@ class AuthTests(APITestCase):
         # Verify that staff users can delete users (soft delete)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertTrue(User.objects.get(id=self.normal_user.id).is_deleted)
+
+
+class MockRequest:
+    def __init__(self, user):
+        self.user = user
+
+
+class AdminTestBase(TestCase):
+    def setUp(self):
+        self.admin_site = AdminSite()
+        self.staff_user = User.objects.create_user(
+            username="staffuser",
+            email="staff@example.com",
+            password="password",
+            is_staff=True,
+        )
+        self.normal_user = User.objects.create_user(
+            username="normaluser", email="normal@example.com", password="password"
+        )
+
+
+class SnippetAdminTests(AdminTestBase):
+    def setUp(self):
+        super().setUp()
+        self.snippet_admin = SnippetAdmin(model=Snippet, admin_site=self.admin_site)
+        self.snippet = Snippet.objects.create(
+            title="Test Snippet", code="print('Hello')", owner=self.normal_user
+        )
+
+    def test_save_snippet(self):
+        request = MockRequest(self.staff_user)
+        self.snippet_admin.save_model(request, self.snippet, form=None, change=True)
+        self.assertEqual(Snippet.objects.count(), 1)
+
+    def test_delete_snippet(self):
+        request = MockRequest(self.staff_user)
+        self.snippet_admin.delete_model(request, self.snippet)
+        self.assertEqual(Snippet.objects.count(), 0)
+
+
+class CustomUserAdminTests(AdminTestBase):
+    def setUp(self):
+        super().setUp()
+        self.user_admin = CustomUserAdmin(model=User, admin_site=self.admin_site)
+
+    def test_save_user(self):
+        request = MockRequest(self.staff_user)
+        self.user_admin.save_model(request, self.normal_user, form=None, change=True)
+        self.assertEqual(User.objects.count(), 2)
+
+    def test_soft_delete_user(self):
+        request = MockRequest(self.staff_user)
+        self.user_admin.delete_model(request, self.normal_user)
+        self.normal_user.refresh_from_db()
+        self.assertTrue(self.normal_user.is_deleted)
+
+    def test_soft_delete_users_action(self):
+        request = MockRequest(self.staff_user)
+        queryset = User.objects.filter(pk=self.normal_user.pk)
+        self.user_admin.soft_delete_users(request, queryset)
+        self.normal_user.refresh_from_db()
+        self.assertTrue(self.normal_user.is_deleted)
+
+
+class AuditLogAdminTests(AdminTestBase, AuditLogMixin):
+    def setUp(self):
+        super().setUp()
+        self.admin_site = AdminSite()
+        self.audit_log_admin = AuditLogAdmin(model=AuditLog, admin_site=self.admin_site)
+        self.snippet = Snippet.objects.create(
+            title="Test Snippet", code="print('Hello')", owner=self.staff_user
+        )
+        self.audit_log = AuditLog.objects.create(
+            user=self.staff_user,
+            model_name="Snippet",
+            object_id=self.snippet.pk,
+            action="create",
+        )
+
+    def test_audit_log_list_display(self):
+        list_display = self.audit_log_admin.get_list_display(request=Mock())
+        self.assertEqual(
+            list_display, ("user", "model_name", "object_id", "action", "timestamp")
+        )
+
+    def test_audit_log_filters(self):
+        list_filter = self.audit_log_admin.get_list_filter(request=Mock())
+        self.assertEqual(list_filter, ("model_name", "action", "user"))
+
+    def test_audit_log_search_fields(self):
+        search_fields = self.audit_log_admin.get_search_fields(request=Mock())
+        self.assertEqual(search_fields, ("model_name", "object_id", "user__username"))

@@ -8,6 +8,7 @@ from rest_framework_simplejwt.views import (
 )
 
 urlpatterns = [
+    # snippets
     path("snippets/", views.SnippetList.as_view(), name="snippet-list"),
     path("snippets/<int:pk>/", views.SnippetDetail.as_view(), name="snippet-detail"),
     path(
@@ -15,11 +16,14 @@ urlpatterns = [
         views.SnippetHighlight.as_view(),
         name="snippet-highlight",
     ),
+    # users
     path("users/", views.UserList.as_view(), name="user-list"),
     path("users/<int:pk>/", views.UserDetail.as_view(), name="user-detail"),
+    # root
     path("", views.api_root),
+    # audit logs
     path("auditlogs/", views.AuditLogListView.as_view(), name="auditlog-list"),
-    # simple JWT-based
+    # JWT auth
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     # DRF Token-based
